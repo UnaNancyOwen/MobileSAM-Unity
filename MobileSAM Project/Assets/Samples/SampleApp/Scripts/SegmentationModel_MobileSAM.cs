@@ -161,7 +161,7 @@ namespace HoloLab.DNN.Segmentation
                 var point_coords = new TensorFloat(new TensorShape(1, 1, 2), new float[] { point.x, point.y });
                 input_tensors.Add("point_coords", point_coords);
 
-                var point_labels = new TensorFloat(new TensorShape(1, 1), new float[] { 0.0f });
+                var point_labels = new TensorFloat(new TensorShape(1, 1), new float[] { 1.0f });
                 input_tensors.Add("point_labels", point_labels);
 
                 var mask_input = new TensorFloat(new TensorShape(1, 1, 256, 256), new float[256 * 256]);
