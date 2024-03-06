@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using Unity.Sentis;
 using HoloLab.DNN.Base;
+using UnityEngine.Assertions;
 
 namespace HoloLab.DNN.Segmentation
 {
@@ -151,17 +152,24 @@ namespace HoloLab.DNN.Segmentation
             /// </summary>
             /// <param name="image">input image</param>
             /// <param name="image_embeddings">input image embeddings</param>
-            /// <param name="point">input annotation point</param>
+            /// <param name="points">input annotation points</param>
+            /// <param name="labels">input annotation labels</param>
             /// <returns>mask tensor</returns>
-            public TensorFloat Decode(Texture2D image, Tensor image_embeddings, Vector2 point)
+            public TensorFloat Decode(Texture2D image, Tensor image_embeddings, List<Vector2> points, List<float> labels)
             {
                 var input_tensors = new Dictionary<string, Tensor>();
                 input_tensors.Add("image_embeddings", image_embeddings);
 
-                var point_coords = new TensorFloat(new TensorShape(1, 1, 2), new float[] { point.x, point.y });
+                var coords = new float[points.Count * 2];
+                for (int i = 0; i < points.Count; i++)
+                {
+                    coords[i * 2 + 0] = points[i].x;
+                    coords[i * 2 + 1] = points[i].y;
+                }
+                var point_coords = new TensorFloat(new TensorShape(1, points.Count, 2), coords);
                 input_tensors.Add("point_coords", point_coords);
 
-                var point_labels = new TensorFloat(new TensorShape(1, 1), new float[] { 1.0f });
+                var point_labels = new TensorFloat(new TensorShape(1, points.Count), labels.ToArray());
                 input_tensors.Add("point_labels", point_labels);
 
                 var mask_input = new TensorFloat(new TensorShape(1, 1, 256, 256), new float[256 * 256]);
@@ -232,17 +240,31 @@ namespace HoloLab.DNN.Segmentation
         /// segment area
         /// </summary>
         /// <param name="image">input image</param>
-        /// <param name="point">anotation point</param>
+        /// <param name="point">annotation point</param>
         /// <returns>segment area texture with binary indices in color.r (segment area is 1)</returns>
         public Texture2D Segment(Texture2D image, Vector2 point)
         {
+            return Segment(image, new List<Vector2>() { point }, new List<float>() { 0.0f } );
+        }
+
+        /// <summary>
+        /// segment area
+        /// </summary>
+        /// <param name="image">input image</param>
+        /// <param name="points">annotation points</param>
+        /// <param name="labels">annotation labels</param>
+        /// <returns>segment area texture with binary indices in color.r (segment area is 1)</returns>
+        public Texture2D Segment(Texture2D image, List<Vector2> points, List<float> labels)
+        {
+            Assert.IsTrue(points.Count == labels.Count);
+
             // encorde
             var image_embeddings = encoder.Encode(image);
             var resize_ratio = encoder.GetResizeRatio();
 
             // decode
-            var resize_point = point * resize_ratio;
-            var masks = decoder.Decode(image, image_embeddings, resize_point);
+            var resize_points = points.Select(point => point * resize_ratio).ToList();
+            var masks = decoder.Decode(image, image_embeddings, resize_points, labels);
 
             // generate mask texture
             masks.MakeReadable();
