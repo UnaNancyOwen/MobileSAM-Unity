@@ -9,14 +9,17 @@ using UnityEngine.Assertions;
 
 namespace HoloLab.DNN.Segmentation
 {
-    namespace MobileSAM
+    /// <summary>
+    /// segmentation class for mobile sam
+    /// </summary>
+    public class SegmentationModel_MobileSAM : IDisposable
     {
         /// <summary>
         /// encoder class for mobile sam
         /// </summary>
         public class Encoder : BaseModel, IDisposable
         {
-            private Vector2 resize_ratio = new Vector2(1.0f, 1.0f);
+            public Vector2 resize_ratio = new Vector2(1.0f, 1.0f);
 
             /// <summary>
             /// create encoder model for mobile sam from onnx file
@@ -63,17 +66,12 @@ namespace HoloLab.DNN.Segmentation
                     (float)resize_texture.height / (float)image.height
                 );
 
-                var image_embeddings = Predict(square_texture)["output"] as TensorFloat;
+                var image_embeddings = Predict(square_texture).First().Value as TensorFloat;
 
                 MonoBehaviour.Destroy(resize_texture);
                 MonoBehaviour.Destroy(square_texture);
 
                 return image_embeddings;
-            }
-
-            public Vector2 GetResizeRatio()
-            {
-                return resize_ratio;
             }
 
             private void Initialize()
@@ -83,7 +81,7 @@ namespace HoloLab.DNN.Segmentation
 
             private Texture2D Resize(Texture2D image)
             {
-                var input_shape = GetInputShapes()["input"];
+                var input_shape = GetInputShapes().First().Value;
                 var scale = input_shape[2] * (1.0f / Math.Max(image.width, image.height));
                 var width = (int)(image.width * scale + 0.5f);
                 var height = (int)(image.height * scale + 0.5f);
@@ -160,12 +158,7 @@ namespace HoloLab.DNN.Segmentation
                 var input_tensors = new Dictionary<string, Tensor>();
                 input_tensors.Add("image_embeddings", image_embeddings);
 
-                var coords = new float[points.Count * 2];
-                for (int i = 0; i < points.Count; i++)
-                {
-                    coords[i * 2 + 0] = points[i].x;
-                    coords[i * 2 + 1] = points[i].y;
-                }
+                var coords = points.SelectMany(point => new float[] { point.x, point.y }).ToArray();
                 var point_coords = new TensorFloat(new TensorShape(1, points.Count, 2), coords);
                 input_tensors.Add("point_coords", point_coords);
 
@@ -190,15 +183,9 @@ namespace HoloLab.DNN.Segmentation
                 return masks;
             }
         }
-    }
 
-    /// <summary>
-    /// segmentation class for mobile sam
-    /// </summary>
-    public class SegmentationModel_MobileSAM : IDisposable
-    {
-        protected MobileSAM.Encoder encoder = null;
-        protected MobileSAM.Decoder decoder = null;
+        private Encoder encoder = null;
+        private Decoder decoder = null;
 
         /// <summary>
         /// create segmentation model for mobile sam from onnx file
@@ -208,8 +195,8 @@ namespace HoloLab.DNN.Segmentation
         /// <param name="backend_type">backend type for inference engine</param>
         public SegmentationModel_MobileSAM(string encoder_path, string decoder_path, BackendType backend_type = BackendType.GPUCompute)
         {
-            encoder = new MobileSAM.Encoder(encoder_path, backend_type);
-            decoder = new MobileSAM.Decoder(decoder_path, backend_type);
+            encoder = new Encoder(encoder_path, backend_type);
+            decoder = new Decoder(decoder_path, backend_type);
         }
 
         /// <summary>
@@ -220,8 +207,8 @@ namespace HoloLab.DNN.Segmentation
         /// <param name="backend_type">backend type for inference engine</param>
         public SegmentationModel_MobileSAM(ModelAsset encoder_asset, ModelAsset decoder_asset,BackendType backend_type = BackendType.GPUCompute)
         {
-            encoder = new MobileSAM.Encoder(encoder_asset, backend_type);
-            decoder = new MobileSAM.Decoder(decoder_asset, backend_type);
+            encoder = new Encoder(encoder_asset, backend_type);
+            decoder = new Decoder(decoder_asset, backend_type);
         }
 
         /// <summary>
@@ -240,7 +227,7 @@ namespace HoloLab.DNN.Segmentation
         /// segment area
         /// </summary>
         /// <param name="image">input image</param>
-        /// <param name="point">annotation point</param>
+        /// <param name="point">anotation point</param>
         /// <returns>segment area texture with binary indices in color.r (segment area is 1)</returns>
         public Texture2D Segment(Texture2D image, Vector2 point)
         {
@@ -251,8 +238,8 @@ namespace HoloLab.DNN.Segmentation
         /// segment area
         /// </summary>
         /// <param name="image">input image</param>
-        /// <param name="points">annotation points</param>
-        /// <param name="labels">annotation labels</param>
+        /// <param name="points">anotation points</param>
+        /// <param name="labels">anotation labels</param>
         /// <returns>segment area texture with binary indices in color.r (segment area is 1)</returns>
         public Texture2D Segment(Texture2D image, List<Vector2> points, List<float> labels)
         {
@@ -260,7 +247,7 @@ namespace HoloLab.DNN.Segmentation
 
             // encorde
             var image_embeddings = encoder.Encode(image);
-            var resize_ratio = encoder.GetResizeRatio();
+            var resize_ratio = encoder.resize_ratio;
 
             // decode
             var resize_points = points.Select(point => point * resize_ratio).ToList();
