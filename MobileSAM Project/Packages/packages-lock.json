@@ -95,7 +95,7 @@
       "url": "https://packages.unity.com"
     },
     "com.unity.sentis": {
-      "version": "1.4.0-pre.2",
+      "version": "1.4.0-pre.3",
       "depth": 0,
       "source": "registry",
       "dependencies": {
@@ -178,7 +178,7 @@
       "depth": 0,
       "source": "git",
       "dependencies": {
-        "com.unity.sentis": "1.4.0-pre.2"
+        "com.unity.sentis": "1.4.0-pre.3"
       },
       "hash": "df27f87e185d56abcaba32682f4c2402f3200f51"
     },
@@ -187,7 +187,7 @@
       "depth": 0,
       "source": "git",
       "dependencies": {
-        "com.unity.sentis": "1.4.0-pre.2",
+        "com.unity.sentis": "1.4.0-pre.3",
         "jp.co.hololab.dnn.base": "1.0.1"
       },
       "hash": "df27f87e185d56abcaba32682f4c2402f3200f51"
