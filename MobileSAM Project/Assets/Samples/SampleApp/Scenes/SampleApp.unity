@@ -606,8 +606,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   input_image: {fileID: 1134053553}
   output_image: {fileID: 282603673}
-  encorder_asset: {fileID: 5022602860645237092, guid: c6b5cd8f82b2ff14e97b75f43f277ce5, type: 3}
-  decorder_asset: {fileID: 5022602860645237092, guid: a9d8d693119cbc14d9fe6137149ac3a6, type: 3}
+  encoder_asset: {fileID: 5022602860645237092, guid: e026af2b56e1fa14cb3627841cd67f58, type: 3}
+  decoder_asset: {fileID: 5022602860645237092, guid: 9405d2654e415e94ea412e07d0a1388b, type: 3}
   alpha: 0.5
 --- !u!1 &1978712493
 GameObject:

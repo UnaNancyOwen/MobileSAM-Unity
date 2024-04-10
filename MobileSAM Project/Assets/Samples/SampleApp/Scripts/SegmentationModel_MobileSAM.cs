@@ -254,7 +254,7 @@ namespace HoloLab.DNN.Segmentation
             var masks = decoder.Decode(image, image_embeddings, resize_points, labels);
 
             // generate mask texture
-            masks.MakeReadable();
+            masks.CompleteOperationsAndDownload();
             var masks_values = masks.ToReadOnlyArray();
             var masks_texture = ToTexture(masks_values, image.width, image.height);
 
