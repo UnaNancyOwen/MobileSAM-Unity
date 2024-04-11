@@ -3,9 +3,9 @@ using System.Linq;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Assertions;
 using Unity.Sentis;
 using HoloLab.DNN.Base;
-using UnityEngine.Assertions;
 
 namespace HoloLab.DNN.Segmentation
 {
@@ -259,6 +259,8 @@ namespace HoloLab.DNN.Segmentation
         /// <remarks>anotation labels are 0 for points of outside area, 1 for points of inside area, 2 and 3 for top-left and bottom-right of bounding box</remarks>
         public Texture2D Segment(Texture2D image, List<Vector2> points, List<float> labels)
         {
+            Assert.IsTrue(points.Count == labels.Count);
+
             // encorde
             var image_embeddings = encoder.Encode(image);
             var resize_ratio = encoder.resize_ratio;
