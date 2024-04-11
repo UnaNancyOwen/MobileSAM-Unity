@@ -231,7 +231,22 @@ namespace HoloLab.DNN.Segmentation
         /// <returns>segment area texture with binary indices in color.r (segment area is 1)</returns>
         public Texture2D Segment(Texture2D image, Vector2 point)
         {
-            return Segment(image, new List<Vector2>() { point }, new List<float>() { 0.0f } );
+            var points = new List<Vector2>() { point };
+            var labels = new List<float>() { 1.0f }; // 0 for points of outside area, 1 for points of inside area
+            return Segment(image, points, labels );
+        }
+
+        /// <summary>
+        /// segment area
+        /// </summary>
+        /// <param name="image">input image</param>
+        /// <param name="rect">anotation bounding box</param>
+        /// <returns>segment area texture with binary indices in color.r (segment area is 1)</returns>
+        public Texture2D Segment(Texture2D image, Rect rect)
+        {
+            var points = new List<Vector2>() { new Vector2(rect.xMin, rect.yMin), new Vector2(rect.xMax, rect.yMax) };
+            var labels = new List<float>() { 2, 3 }; // 2 and 3 for top-left and bottom-right of bounding box
+            return Segment(image, points, labels);
         }
 
         /// <summary>
@@ -241,10 +256,9 @@ namespace HoloLab.DNN.Segmentation
         /// <param name="points">anotation points</param>
         /// <param name="labels">anotation labels</param>
         /// <returns>segment area texture with binary indices in color.r (segment area is 1)</returns>
+        /// <remarks>anotation labels are 0 for points of outside area, 1 for points of inside area, 2 and 3 for top-left and bottom-right of bounding box</remarks>
         public Texture2D Segment(Texture2D image, List<Vector2> points, List<float> labels)
         {
-            Assert.IsTrue(points.Count == labels.Count);
-
             // encorde
             var image_embeddings = encoder.Encode(image);
             var resize_ratio = encoder.resize_ratio;
