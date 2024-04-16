@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
@@ -44,15 +45,21 @@ namespace Sample
 
         public void OnPointSelect(object sender, PointEventArgs e)
         {
+            StartCoroutine(Segment(e));
+        }
+
+        public IEnumerator Segment(PointEventArgs e)
+        {
             // Get Texture from Raw Image
             var input_texture = input_image.texture as Texture2D;
             if (input_texture == null)
             {
-                return;
+                yield break;
             }
 
             // Segment Area using Point annotation
-            var indices_texture = model.Segment(input_texture, e.point);
+            Texture2D indices_texture = null;
+            yield return StartCoroutine(model.Segment(input_texture, e.point, (output) => indices_texture = output));
 
             // Draw Area on Unity UI
             var colorized_texture = Visualizer.ColorizeArea(indices_texture, colors);
@@ -70,15 +77,21 @@ namespace Sample
 
         public void OnRectSelect(object sender, RectEventArgs e)
         {
+            StartCoroutine(Segment(e));
+        }
+
+        public IEnumerator Segment(RectEventArgs e)
+        {
             // Get Texture from Raw Image
             var input_texture = input_image.texture as Texture2D;
             if (input_texture == null)
             {
-                return;
+                yield break;
             }
 
             // Segment Area using Bounding Box annotation
-            var indices_texture = model.Segment(input_texture, e.rect);
+            Texture2D indices_texture = null;
+            yield return StartCoroutine(model.Segment(input_texture, e.rect, (output) => indices_texture = output));
 
             // Draw Area on Unity UI
             var colorized_texture = Visualizer.ColorizeArea(indices_texture, colors);

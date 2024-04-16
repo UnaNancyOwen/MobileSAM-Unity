@@ -180,7 +180,7 @@
       "dependencies": {
         "com.unity.sentis": "1.4.0-pre.3"
       },
-      "hash": "793d8ea971dabb6fbf679ddb68854fd75ec688f3"
+      "hash": "431d6cc0e8c4d07f6bb3c40588c5f70b7289336e"
     },
     "jp.co.hololab.dnn.segmentation": {
       "version": "https://github.com/HoloLabInc/HoloLabDnnPackages.git?path=packages/jp.co.hololab.dnn.segmentation",
@@ -190,7 +190,7 @@
         "com.unity.sentis": "1.4.0-pre.3",
         "jp.co.hololab.dnn.base": "1.0.1"
       },
-      "hash": "793d8ea971dabb6fbf679ddb68854fd75ec688f3"
+      "hash": "431d6cc0e8c4d07f6bb3c40588c5f70b7289336e"
     },
     "com.unity.modules.ai": {
       "version": "1.0.0",

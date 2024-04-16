@@ -1,7 +1,8 @@
 using System;
 using System.Linq;
-using System.Threading.Tasks;
+using System.Collections;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.Assertions;
 using Unity.Sentis;
@@ -76,9 +77,36 @@ namespace HoloLab.DNN.Segmentation
                 return image_embeddings;
             }
 
+            /// <summary>
+            /// encorde image with split predict over multiple frames
+            /// </summary>
+            /// <param name="image">input image</param>
+            /// <param name="return_action">return callback</param>
+            /// <returns>callback function to returns image embeddings</returns>
+            public IEnumerator Encode(Texture2D image, Action<TensorFloat> return_action)
+            {
+                var resize_texture = Resize(image);
+                var square_texture = Square(resize_texture);
+
+                resize_ratio = new Vector2(
+                    (float)resize_texture.width / (float)image.width,
+                    (float)resize_texture.height / (float)image.height
+                );
+
+                var output_tensors = new Dictionary<string, Tensor>();
+                yield return CoroutineHandler.StartStaticCoroutine(Predict(square_texture, (outputs) => output_tensors = outputs));
+                var image_embeddings = output_tensors.First().Value as TensorFloat;
+
+                MonoBehaviour.Destroy(resize_texture);
+                MonoBehaviour.Destroy(square_texture);
+
+                return_action(image_embeddings);
+            }
+
             private void Initialize()
             {
                 SetInputMax(255.0f);
+                SetLayersPerFrame(runtime_model.layers.Count / 5); // TODO : automatic adjust number of layers per frame
             }
 
             private Texture2D Resize(Texture2D image)
@@ -119,6 +147,9 @@ namespace HoloLab.DNN.Segmentation
         /// </summary>
         public class Decoder : BaseModel, IDisposable
         {
+            private bool is_predicting = false;
+            private int layers_per_frame = 1;
+
             /// <summary>
             /// create decoder model for mobile sam from onnx file
             /// </summary>
@@ -128,6 +159,7 @@ namespace HoloLab.DNN.Segmentation
             public Decoder(string file_path, BackendType backend_type = BackendType.GPUCompute, bool apply_quantize = true)
                 : base(file_path, backend_type, apply_quantize)
             {
+                Initialize();
             }
 
             /// <summary>
@@ -139,6 +171,7 @@ namespace HoloLab.DNN.Segmentation
             public Decoder(ModelAsset model_asset, BackendType backend_type = BackendType.GPUCompute, bool apply_quantize = true)
                 : base(model_asset, backend_type, apply_quantize)
             {
+                Initialize();
             }
 
             /// <summary>
@@ -185,6 +218,65 @@ namespace HoloLab.DNN.Segmentation
                 input_tensors?.AllDispose();
 
                 return masks;
+            }
+
+            /// <summary>
+            /// decorde image embeddings with split predict over multiple frames
+            /// </summary>
+            /// <param name="image">input image</param>
+            /// <param name="image_embeddings">input image embeddings</param>
+            /// <param name="points">input annotation points</param>
+            /// <param name="labels">input annotation labels</param>
+            /// <param name="return_action">return callback</param>
+            /// <returns>callback function to returns masks tensor</returns>
+            public IEnumerator Decode(Texture2D image, Tensor image_embeddings, List<Vector2> points, List<float> labels, Action<TensorFloat> return_action)
+            {
+                var input_tensors = new Dictionary<string, Tensor>();
+                input_tensors.Add("image_embeddings", image_embeddings);
+
+                var coords = points.SelectMany(point => new float[] { point.x, point.y }).ToArray();
+                var point_coords = new TensorFloat(new TensorShape(1, points.Count, 2), coords);
+                input_tensors.Add("point_coords", point_coords);
+
+                var point_labels = new TensorFloat(new TensorShape(1, points.Count), labels.ToArray());
+                input_tensors.Add("point_labels", point_labels);
+
+                var mask_input = new TensorFloat(new TensorShape(1, 1, 256, 256), new float[256 * 256]);
+                input_tensors.Add("mask_input", mask_input);
+
+                var has_mask_input = new TensorFloat(new TensorShape(1), new float[] { 0.0f });
+                input_tensors.Add("has_mask_input", has_mask_input);
+
+                var orig_im_size = new TensorFloat(new TensorShape(2), new float[] { image.height, image.width });
+                input_tensors.Add("orig_im_size", orig_im_size);
+
+                if (!is_predicting)
+                {
+                    schedule = worker.ExecuteLayerByLayer(input_tensors);
+                    is_predicting = true;
+                }
+
+                var layers = 0;
+                while (schedule.MoveNext())
+                {
+                    if ((++layers % layers_per_frame) == 0)
+                    {
+                        yield return null;
+                    }
+                }
+
+                var masks = worker.PeekOutput("masks") as TensorFloat;
+
+                input_tensors?.AllDispose();
+
+                is_predicting = false;
+
+                return_action(masks);
+            }
+
+            private void Initialize()
+            {
+                layers_per_frame = runtime_model.layers.Count / 5; // TODO : automatic adjust number of layers per frame
             }
         }
 
@@ -249,7 +341,7 @@ namespace HoloLab.DNN.Segmentation
         public Texture2D Segment(Texture2D image, Rect rect)
         {
             var points = new List<Vector2>() { new Vector2(rect.xMin, rect.yMin), new Vector2(rect.xMax, rect.yMax) };
-            var labels = new List<float>() { 2, 3 }; // 2 and 3 for top-left and bottom-right of bounding box
+            var labels = new List<float>() { 2.0f, 3.0f }; // 2 and 3 for top-left and bottom-right of bounding box
             return Segment(image, points, labels);
         }
 
@@ -284,6 +376,74 @@ namespace HoloLab.DNN.Segmentation
 
             return masks_texture;
         }
+
+        /// <summary>
+        /// segment area with split predict over multiple frames
+        /// </summary>
+        /// <param name="image">input image</param>
+        /// <param name="point">anotation point</param>
+        /// <param name="return_callback">return callback</param>
+        /// <returns>callback function to returns segment area texture with binary indices in color.r (segment area is 1)</returns>
+        public IEnumerator Segment(Texture2D image, Vector2 point, Action<Texture2D> return_action)
+        {
+            var points = new List<Vector2>() { point };
+            var labels = new List<float>() { 1.0f }; // 0 for points of outside area, 1 for points of inside area
+            Texture2D masks_texture = null;
+            yield return CoroutineHandler.StartStaticCoroutine(Segment(image, points, labels, (output) => masks_texture = output));
+            return_action(masks_texture);
+        }
+
+        /// <summary>
+        /// segment area with split predict over multiple frames
+        /// </summary>
+        /// <param name="image">input image</param>
+        /// <param name="rect">anotation bounding box</param>
+        /// <param name="return_callback">return callback</param>
+        /// <returns>callback function to returns segment area texture with binary indices in color.r (segment area is 1)</returns>
+        public IEnumerator Segment(Texture2D image, Rect rect, Action<Texture2D> return_action)
+        {
+            var points = new List<Vector2>() { new Vector2(rect.xMin, rect.yMin), new Vector2(rect.xMax, rect.yMax) };
+            var labels = new List<float>() { 2.0f, 3.0f }; // 2 and 3 for top-left and bottom-right of bounding box
+            Texture2D masks_texture = null;
+            yield return CoroutineHandler.StartStaticCoroutine(Segment(image, points, labels, (output) => masks_texture = output));
+            return_action(masks_texture);
+        }
+
+        /// <summary>
+        /// segment area with split predict over multiple frames
+        /// </summary>
+        /// <param name="image">input image</param>
+        /// <param name="points">anotation points</param>
+        /// <param name="labels">anotation labels</param>
+        /// <param name="return_callback">return callback</param>
+        /// <returns>callback function to returns segment area texture with binary indices in color.r (segment area is 1)</returns>
+        /// <remarks>anotation labels are 0 for points of outside area, 1 for points of inside area, 2 and 3 for top-left and bottom-right of bounding box</remarks>
+        public IEnumerator Segment(Texture2D image, List<Vector2> points, List<float> labels, Action<Texture2D> return_action)
+        {
+            Assert.IsTrue(points.Count == labels.Count);
+
+            // encorde
+            TensorFloat image_embeddings = null;
+            yield return CoroutineHandler.StartStaticCoroutine(encoder.Encode(image, (output) => image_embeddings = output));
+            var resize_ratio = encoder.resize_ratio;
+
+            // decode
+            var resize_points = points.Select(point => point * resize_ratio).ToList();
+            TensorFloat masks = null;
+            yield return CoroutineHandler.StartStaticCoroutine(decoder.Decode(image, image_embeddings, resize_points, labels, (output) => masks = output));
+
+            // generate mask texture
+            masks.CompleteOperationsAndDownload();
+            var masks_values = masks.ToReadOnlyArray();
+            var masks_texture = ToTexture(masks_values, image.width, image.height);
+
+            // release tensors
+            image_embeddings?.Dispose();
+            masks?.Dispose();
+
+            return_action(masks_texture);
+        }
+
 
         private Texture2D ToTexture(float[] tensor, int width, int height)
         {
