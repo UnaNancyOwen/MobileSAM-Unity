@@ -23,13 +23,25 @@ namespace HoloLab.DNN.Segmentation
             public Vector2 resize_ratio = new Vector2(1.0f, 1.0f);
 
             /// <summary>
-            /// create encoder model for mobile sam from onnx file
+            /// create encoder model for mobile sam from sentis file
             /// </summary>
             /// <param name="file_path">model file path</param>
             /// <param name="backend_type">backend type for inference engine</param>
             /// <param name="apply_quantize">apply float16 quantize</param>
             public Encoder(string file_path, BackendType backend_type = BackendType.GPUCompute, bool apply_quantize = true)
                 : base(file_path, backend_type, apply_quantize)
+            {
+                Initialize();
+            }
+
+            /// <summary>
+            /// create encoder model from stream
+            /// </summary>
+            /// <param name="stream">mdoel stream</param>
+            /// <param name="backend_type">backend type for inference engine</param>
+            /// <param name="apply_quantize">apply float16 quantize</param>
+            public Encoder(System.IO.Stream stream, BackendType backend_type = BackendType.GPUCompute, bool apply_quantize = true)
+                : base(stream, backend_type, apply_quantize)
             {
                 Initialize();
             }
@@ -151,7 +163,7 @@ namespace HoloLab.DNN.Segmentation
             private int layers_per_frame = 1;
 
             /// <summary>
-            /// create decoder model for mobile sam from onnx file
+            /// create decoder model for mobile sam from sentis file
             /// </summary>
             /// <param name="file_path">model file path</param>
             /// <param name="backend_type">backend type for inference engine</param>
@@ -170,6 +182,18 @@ namespace HoloLab.DNN.Segmentation
             /// <param name="apply_quantize">apply float16 quantize</param>
             public Decoder(ModelAsset model_asset, BackendType backend_type = BackendType.GPUCompute, bool apply_quantize = true)
                 : base(model_asset, backend_type, apply_quantize)
+            {
+                Initialize();
+            }
+
+            /// <summary>
+            /// create decoder model from stream
+            /// </summary>
+            /// <param name="stream">mdoel stream</param>
+            /// <param name="backend_type">backend type for inference engine</param>
+            /// <param name="apply_quantize">apply float16 quantize</param>
+            public Decoder(System.IO.Stream stream, BackendType backend_type = BackendType.GPUCompute, bool apply_quantize = true)
+                : base(stream, backend_type, apply_quantize)
             {
                 Initialize();
             }
@@ -284,7 +308,7 @@ namespace HoloLab.DNN.Segmentation
         private Decoder decoder = null;
 
         /// <summary>
-        /// create segmentation model for mobile sam from onnx file
+        /// create segmentation model for mobile sam from sentis file
         /// </summary>
         /// <param name="encoder_path">encoder model file path</param>
         /// <param name="decoder_path">decoder model file path</param>
@@ -293,6 +317,19 @@ namespace HoloLab.DNN.Segmentation
         {
             encoder = new Encoder(encoder_path, backend_type);
             decoder = new Decoder(decoder_path, backend_type);
+        }
+
+        /// <summary>
+        /// create segmentation model for mobile sam from model stream
+        /// </summary>
+        /// <param name="encoder_stream">encoder model stream</param>
+        /// <param name="decoder_stream">decoder model stream</param>
+        /// <param name="backend_type">backend type for inference engine</param>
+        /// <param name="apply_quantize">apply float16 quantize</param>
+        public SegmentationModel_MobileSAM(System.IO.Stream encoder_stream, System.IO.Stream decoder_stream, BackendType backend_type = BackendType.GPUCompute, bool apply_quantize = true)
+        {
+            encoder = new Encoder(encoder_stream, backend_type);
+            decoder = new Decoder(decoder_stream, backend_type);
         }
 
         /// <summary>
