@@ -19,7 +19,7 @@ You can export encoder and decoder to ONNX files according to the following repo
 
 ## Environment
 
-These sample work on Unity 2021.3 LTS or later.  
+These sample work on Unity 2023.2 (Unity 6) or later.  
 
 ## License
 
