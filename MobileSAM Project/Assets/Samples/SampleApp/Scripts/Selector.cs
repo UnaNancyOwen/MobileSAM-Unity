@@ -1,6 +1,5 @@
 using System;
 using UnityEngine;
-using Unity.VisualScripting;
 
 namespace Sample
 {
@@ -119,7 +118,8 @@ namespace Sample
 
                     if (IsContain(start_position, new Vector2(0.0f, 0.0f), new Vector2(width, height)) && IsContain(stop_position, new Vector2(0.0f, 0.0f), new Vector2(width, height)))
                     {
-                        var size = (start_position - stop_position).Abs();
+                        var diff = start_position - stop_position;
+                        var size = new Vector2(Math.Abs(diff.x), Math.Abs(diff.y));
                         var positon = Vector2.Lerp(start_position, stop_position, 0.5f) - (size * 0.5f);
                         var rect = new Rect(positon, size);
                         OnRectSelected?.Invoke(this, new RectEventArgs(rect));
