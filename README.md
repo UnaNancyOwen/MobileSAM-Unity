@@ -1,5 +1,11 @@
 # MobileSAM using HoloLab DNN Packages
 
+> [!NOTE]
+> ONNX files are managed using Git LFS. Please git clone with `--recursive` option.
+> ```
+> git clone --recursive https://github.com/UnaNancyOwen/MobileSAM-Unity.git
+> ```
+
 ## About
 
 This Unity project is sample app of MobileSAM using HoloLab DNN Packages that based on Unity Sentis.  
