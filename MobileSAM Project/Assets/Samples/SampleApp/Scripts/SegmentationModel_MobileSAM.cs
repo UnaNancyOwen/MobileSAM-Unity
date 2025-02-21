@@ -27,9 +27,8 @@ namespace HoloLab.DNN.Segmentation
             /// </summary>
             /// <param name="file_path">model file path</param>
             /// <param name="backend_type">backend type for inference engine</param>
-            /// <param name="apply_quantize">apply float16 quantize</param>
-            public Encoder(string file_path, BackendType backend_type = BackendType.GPUCompute, bool apply_quantize = true)
-                : base(file_path, backend_type, apply_quantize)
+            public Encoder(string file_path, BackendType backend_type = BackendType.GPUCompute)
+                : base(file_path, backend_type)
             {
                 Initialize();
             }
@@ -39,9 +38,8 @@ namespace HoloLab.DNN.Segmentation
             /// </summary>
             /// <param name="stream">mdoel stream</param>
             /// <param name="backend_type">backend type for inference engine</param>
-            /// <param name="apply_quantize">apply float16 quantize</param>
-            public Encoder(System.IO.Stream stream, BackendType backend_type = BackendType.GPUCompute, bool apply_quantize = true)
-                : base(stream, backend_type, apply_quantize)
+            public Encoder(System.IO.Stream stream, BackendType backend_type = BackendType.GPUCompute)
+                : base(stream, backend_type)
             {
                 Initialize();
             }
@@ -51,9 +49,8 @@ namespace HoloLab.DNN.Segmentation
             /// </summary>
             /// <param name="model_asset">model asset</param>
             /// <param name="backend_type">backend type for inference engine</param>
-            /// <param name="apply_quantize">apply float16 quantize</param>
-            public Encoder(ModelAsset model_asset, BackendType backend_type = BackendType.GPUCompute, bool apply_quantize = true)
-                : base(model_asset, backend_type, apply_quantize)
+            public Encoder(ModelAsset model_asset, BackendType backend_type = BackendType.GPUCompute)
+                : base(model_asset, backend_type)
             {
                 Initialize();
             }
@@ -71,7 +68,7 @@ namespace HoloLab.DNN.Segmentation
             /// </summary>
             /// <param name="image">input image</param>
             /// <returns>image embeddings</returns>
-            public TensorFloat Encode(Texture2D image)
+            public Tensor<float> Encode(Texture2D image)
             {
                 var resize_texture = Resize(image);
                 var square_texture = Square(resize_texture);
@@ -81,7 +78,7 @@ namespace HoloLab.DNN.Segmentation
                     (float)resize_texture.height / (float)image.height
                 );
 
-                var image_embeddings = Predict(square_texture).First().Value as TensorFloat;
+                var image_embeddings = Predict(square_texture).First().Value as Tensor<float>;
 
                 MonoBehaviour.Destroy(resize_texture);
                 MonoBehaviour.Destroy(square_texture);
@@ -95,7 +92,7 @@ namespace HoloLab.DNN.Segmentation
             /// <param name="image">input image</param>
             /// <param name="return_action">return callback</param>
             /// <returns>callback function to returns image embeddings</returns>
-            public IEnumerator Encode(Texture2D image, Action<TensorFloat> return_action)
+            public IEnumerator Encode(Texture2D image, Action<Tensor<float>> return_action)
             {
                 var resize_texture = Resize(image);
                 var square_texture = Square(resize_texture);
@@ -107,7 +104,7 @@ namespace HoloLab.DNN.Segmentation
 
                 var output_tensors = new Dictionary<string, Tensor>();
                 yield return CoroutineHandler.StartStaticCoroutine(Predict(square_texture, (outputs) => output_tensors = outputs));
-                var image_embeddings = output_tensors.First().Value as TensorFloat;
+                var image_embeddings = output_tensors.First().Value as Tensor<float>;
 
                 MonoBehaviour.Destroy(resize_texture);
                 MonoBehaviour.Destroy(square_texture);
@@ -118,7 +115,27 @@ namespace HoloLab.DNN.Segmentation
             private void Initialize()
             {
                 SetInputMax(255.0f);
-                SetLayersPerFrame(runtime_model.layers.Count / 5); // TODO : automatic adjust number of layers per frame
+                SetEditedModel(AddPreProcess());
+                SetSliceLayers(5); // TODO : automatic adjust number of layers per frame
+            }
+
+            private Model AddPreProcess()
+            {
+                try
+                {
+                    // INFO : change input data type to Tensor<float> from Tensor<int>, because TextureConverter.ToTensor() can not convert to Tensor<int>.
+                    var functional_graph = new FunctionalGraph();
+                    var float_tensor = functional_graph.AddInput(DataType.Float, base.runtime_model.inputs[0].shape);
+                    var int_tensor = Functional.Int(float_tensor);
+                    var predict = Functional.Forward(base.runtime_model, int_tensor)[0];
+                    var edited_model = functional_graph.Compile(predict);
+
+                    return edited_model;
+                }
+                catch (Exception e)
+                {
+                    throw new Exception($"[error] can not add post process to model for some reason. ({e.Message})");
+                }
             }
 
             private Texture2D Resize(Texture2D image)
@@ -167,9 +184,8 @@ namespace HoloLab.DNN.Segmentation
             /// </summary>
             /// <param name="file_path">model file path</param>
             /// <param name="backend_type">backend type for inference engine</param>
-            /// <param name="apply_quantize">apply float16 quantize</param>
-            public Decoder(string file_path, BackendType backend_type = BackendType.GPUCompute, bool apply_quantize = true)
-                : base(file_path, backend_type, apply_quantize)
+            public Decoder(string file_path, BackendType backend_type = BackendType.GPUCompute)
+                : base(file_path, backend_type)
             {
                 Initialize();
             }
@@ -179,9 +195,8 @@ namespace HoloLab.DNN.Segmentation
             /// </summary>
             /// <param name="model_asset">model asset</param>
             /// <param name="backend_type">backend type for inference engine</param>
-            /// <param name="apply_quantize">apply float16 quantize</param>
-            public Decoder(ModelAsset model_asset, BackendType backend_type = BackendType.GPUCompute, bool apply_quantize = true)
-                : base(model_asset, backend_type, apply_quantize)
+            public Decoder(ModelAsset model_asset, BackendType backend_type = BackendType.GPUCompute)
+                : base(model_asset, backend_type)
             {
                 Initialize();
             }
@@ -191,9 +206,8 @@ namespace HoloLab.DNN.Segmentation
             /// </summary>
             /// <param name="stream">mdoel stream</param>
             /// <param name="backend_type">backend type for inference engine</param>
-            /// <param name="apply_quantize">apply float16 quantize</param>
-            public Decoder(System.IO.Stream stream, BackendType backend_type = BackendType.GPUCompute, bool apply_quantize = true)
-                : base(stream, backend_type, apply_quantize)
+            public Decoder(System.IO.Stream stream, BackendType backend_type = BackendType.GPUCompute)
+                : base(stream, backend_type)
             {
                 Initialize();
             }
@@ -214,30 +228,30 @@ namespace HoloLab.DNN.Segmentation
             /// <param name="points">input annotation points</param>
             /// <param name="labels">input annotation labels</param>
             /// <returns>mask tensor</returns>
-            public TensorFloat Decode(Texture2D image, Tensor image_embeddings, List<Vector2> points, List<float> labels)
+            public Tensor<float> Decode(Texture2D image, Tensor<float> image_embeddings, List<Vector2> points, List<float> labels)
             {
-                var input_tensors = new Dictionary<string, Tensor>();
-                input_tensors.Add("image_embeddings", image_embeddings);
+                var input_tensors = new Dictionary<string, Tensor<float>>();
+                worker.SetInput("image_embeddings", image_embeddings);
 
                 var coords = points.SelectMany(point => new float[] { point.x, point.y }).ToArray();
-                var point_coords = new TensorFloat(new TensorShape(1, points.Count, 2), coords);
-                input_tensors.Add("point_coords", point_coords);
+                var point_coords = new Tensor<float>(new TensorShape(1, points.Count, 2), coords);
+                worker.SetInput("point_coords", point_coords);
 
-                var point_labels = new TensorFloat(new TensorShape(1, points.Count), labels.ToArray());
-                input_tensors.Add("point_labels", point_labels);
+                var point_labels = new Tensor<float>(new TensorShape(1, points.Count), labels.ToArray());
+                worker.SetInput("point_labels", point_labels);
 
-                var mask_input = new TensorFloat(new TensorShape(1, 1, 256, 256), new float[256 * 256]);
-                input_tensors.Add("mask_input", mask_input);
+                var mask_input = new Tensor<float>(new TensorShape(1, 1, 256, 256), new float[256 * 256]);
+                worker.SetInput("mask_input", mask_input);
 
-                var has_mask_input = new TensorFloat(new TensorShape(1), new float[] { 0.0f });
-                input_tensors.Add("has_mask_input", has_mask_input);
+                var has_mask_input = new Tensor<float>(new TensorShape(1), new float[] { 0.0f });
+                worker.SetInput("has_mask_input", has_mask_input);
 
-                var orig_im_size = new TensorFloat(new TensorShape(2), new float[] { image.height, image.width });
-                input_tensors.Add("orig_im_size", orig_im_size);
+                var orig_im_size = new Tensor<float>(new TensorShape(2), new float[] { image.height, image.width });
+                worker.SetInput("orig_im_size", orig_im_size);
 
-                worker.Execute(input_tensors);
+                worker.Schedule();
 
-                var masks = worker.PeekOutput("masks") as TensorFloat;
+                var masks = worker.PeekOutput("masks") as Tensor<float>;
 
                 input_tensors?.AllDispose();
 
@@ -253,30 +267,30 @@ namespace HoloLab.DNN.Segmentation
             /// <param name="labels">input annotation labels</param>
             /// <param name="return_action">return callback</param>
             /// <returns>callback function to returns masks tensor</returns>
-            public IEnumerator Decode(Texture2D image, Tensor image_embeddings, List<Vector2> points, List<float> labels, Action<TensorFloat> return_action)
+            public IEnumerator Decode(Texture2D image, Tensor<float> image_embeddings, List<Vector2> points, List<float> labels, Action<Tensor<float>> return_action)
             {
-                var input_tensors = new Dictionary<string, Tensor>();
-                input_tensors.Add("image_embeddings", image_embeddings);
+                var input_tensors = new Dictionary<string, Tensor<float>>();
+                worker.SetInput("image_embeddings", image_embeddings);
 
                 var coords = points.SelectMany(point => new float[] { point.x, point.y }).ToArray();
-                var point_coords = new TensorFloat(new TensorShape(1, points.Count, 2), coords);
-                input_tensors.Add("point_coords", point_coords);
+                var point_coords = new Tensor<float>(new TensorShape(1, points.Count, 2), coords);
+                worker.SetInput("point_coords", point_coords);
 
-                var point_labels = new TensorFloat(new TensorShape(1, points.Count), labels.ToArray());
-                input_tensors.Add("point_labels", point_labels);
+                var point_labels = new Tensor<float>(new TensorShape(1, points.Count), labels.ToArray());
+                worker.SetInput("point_labels", point_labels);
 
-                var mask_input = new TensorFloat(new TensorShape(1, 1, 256, 256), new float[256 * 256]);
-                input_tensors.Add("mask_input", mask_input);
+                var mask_input = new Tensor<float>(new TensorShape(1, 1, 256, 256), new float[256 * 256]);
+                worker.SetInput("mask_input", mask_input);
 
-                var has_mask_input = new TensorFloat(new TensorShape(1), new float[] { 0.0f });
-                input_tensors.Add("has_mask_input", has_mask_input);
+                var has_mask_input = new Tensor<float>(new TensorShape(1), new float[] { 0.0f });
+                worker.SetInput("has_mask_input", has_mask_input);
 
-                var orig_im_size = new TensorFloat(new TensorShape(2), new float[] { image.height, image.width });
-                input_tensors.Add("orig_im_size", orig_im_size);
+                var orig_im_size = new Tensor<float>(new TensorShape(2), new float[] { image.height, image.width });
+                worker.SetInput("orig_im_size", orig_im_size);
 
                 if (!is_predicting)
                 {
-                    schedule = worker.ExecuteLayerByLayer(input_tensors);
+                    schedule = worker.ScheduleIterable();
                     is_predicting = true;
                 }
 
@@ -289,7 +303,7 @@ namespace HoloLab.DNN.Segmentation
                     }
                 }
 
-                var masks = worker.PeekOutput("masks") as TensorFloat;
+                var masks = worker.PeekOutput("masks") as Tensor<float>;
 
                 input_tensors?.AllDispose();
 
@@ -326,7 +340,7 @@ namespace HoloLab.DNN.Segmentation
         /// <param name="decoder_stream">decoder model stream</param>
         /// <param name="backend_type">backend type for inference engine</param>
         /// <param name="apply_quantize">apply float16 quantize</param>
-        public SegmentationModel_MobileSAM(System.IO.Stream encoder_stream, System.IO.Stream decoder_stream, BackendType backend_type = BackendType.GPUCompute, bool apply_quantize = true)
+        public SegmentationModel_MobileSAM(System.IO.Stream encoder_stream, System.IO.Stream decoder_stream, BackendType backend_type = BackendType.GPUCompute)
         {
             encoder = new Encoder(encoder_stream, backend_type);
             decoder = new Decoder(decoder_stream, backend_type);
@@ -354,6 +368,15 @@ namespace HoloLab.DNN.Segmentation
 
             decoder?.Dispose();
             decoder = null;
+        }
+
+        /// <summary>
+        /// apply float16 quantize
+        /// </summary>
+        public void ApplyQuantize()
+        {
+            encoder?.ApplyQuantize();
+            decoder?.ApplyQuantize();
         }
 
         /// <summary>
@@ -403,12 +426,16 @@ namespace HoloLab.DNN.Segmentation
             var masks = decoder.Decode(image, image_embeddings, resize_points, labels);
 
             // generate mask texture
-            masks.CompleteOperationsAndDownload();
-            var masks_values = masks.ToReadOnlyArray();
+            var masks_tensor = masks.ReadbackAndClone() as Tensor<float>;
+            var masks_values = masks_tensor.AsReadOnlyNativeArray();
             var masks_texture = ToTexture(masks_values, image.width, image.height);
+
+            //var int_array = masks_tensor.AsReadOnlyNativeArray().Reinterpret<int>().ToArray();
+            //var input_tensor = new Tensor<int>(masks_tensor.shape, int_array);
 
             // release tensors
             image_embeddings?.Dispose();
+            masks_tensor?.Dispose();
             masks?.Dispose();
 
             return masks_texture;
@@ -460,29 +487,30 @@ namespace HoloLab.DNN.Segmentation
             Assert.IsTrue(points.Count == labels.Count);
 
             // encorde
-            TensorFloat image_embeddings = null;
+            Tensor<float> image_embeddings = null;
             yield return CoroutineHandler.StartStaticCoroutine(encoder.Encode(image, (output) => image_embeddings = output));
             var resize_ratio = encoder.resize_ratio;
 
             // decode
             var resize_points = points.Select(point => point * resize_ratio).ToList();
-            TensorFloat masks = null;
+            Tensor<float> masks = null;
             yield return CoroutineHandler.StartStaticCoroutine(decoder.Decode(image, image_embeddings, resize_points, labels, (output) => masks = output));
 
             // generate mask texture
-            masks.CompleteOperationsAndDownload();
-            var masks_values = masks.ToReadOnlyArray();
+            var masks_tensor = masks.ReadbackAndClone();
+            var masks_values = masks_tensor.AsReadOnlyNativeArray();
             var masks_texture = ToTexture(masks_values, image.width, image.height);
 
             // release tensors
             image_embeddings?.Dispose();
+            masks_tensor?.Dispose();
             masks?.Dispose();
 
             return_action(masks_texture);
         }
 
 
-        private Texture2D ToTexture(float[] tensor, int width, int height)
+        private Texture2D ToTexture(Unity.Collections.NativeArray<float>.ReadOnly values, int width, int height)
         {
             var texture = new Texture2D(width, height, TextureFormat.R8, false);
             var colors = new Color32[width * height];
@@ -492,7 +520,7 @@ namespace HoloLab.DNN.Segmentation
                 for (var x = 0; x < width; x++)
                 {
                     var index = inv_y * width + x;
-                    colors[y * width + x].r = (byte)((tensor[index] > 0.0f) ? 1 : 0); ;
+                    colors[y * width + x].r = (byte)((values[index] > 0.0f) ? 1 : 0); ;
                 }
             });
 

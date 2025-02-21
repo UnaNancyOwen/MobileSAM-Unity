@@ -1,12 +1,13 @@
 {
   "dependencies": {
-    "com.unity.collab-proxy": "2.3.1",
+    "com.unity.collab-proxy": "2.6.0",
     "com.unity.feature.development": "1.0.2",
-    "com.unity.sentis": "1.5.0-pre.3",
-    "com.unity.timeline": "1.8.6",
-    "com.unity.toolchain.win-x86_64-linux-x86_64": "2.0.9",
+    "com.unity.multiplayer.center": "1.0.0",
+    "com.unity.sentis": "2.1.2",
+    "com.unity.timeline": "1.8.7",
+    "com.unity.toolchain.win-x86_64-linux-x86_64": "2.0.10",
     "com.unity.ugui": "2.0.0",
-    "com.unity.visualscripting": "1.9.4",
+    "com.unity.visualscripting": "1.9.5",
     "jp.co.hololab.dnn.base": "https://github.com/HoloLabInc/HoloLabDnnPackages.git?path=packages/jp.co.hololab.dnn.base",
     "jp.co.hololab.dnn.segmentation": "https://github.com/HoloLabInc/HoloLabDnnPackages.git?path=packages/jp.co.hololab.dnn.segmentation",
     "com.unity.modules.accessibility": "1.0.0",

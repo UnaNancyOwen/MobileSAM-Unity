@@ -24,6 +24,7 @@ namespace Sample
         {
             // Create Segmentation Model
             model = new SegmentationModel_MobileSAM(encoder_asset, decoder_asset, BackendType.GPUCompute);
+            model.ApplyQuantize();
 
             // Create Colors
             colors = new List<Color>() { Color.clear, new Color(1.0f, 0.0f, 0.0f, alpha) };
